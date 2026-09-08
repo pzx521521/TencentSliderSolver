@@ -1,6 +1,6 @@
 # TencentSliderSolver_cloud
 
-腾讯滑块验证码求解 HTTP 服务,基于 FastAPI + Node.js,返回 `ticket` / `randstr`。
+腾讯滑块验证码求解 HTTP 服务,基于 FastAPI + quickjs(进程内执行 JS,无 Node 依赖),返回 `ticket` / `randstr`。
 
 ## 快速启动
 
@@ -11,11 +11,29 @@ pip install -r requirements.txt
 python app/main.py          # 默认监听 0.0.0.0:8000,可用环境变量 PORT 覆盖
 ```
 
-### Docker 运行
+### Docker 部署(通用平台)
 
 ```bash
 docker build -t slider-solver .
-docker run -p 7860:7860 slider-solver
+docker run -p 7860:7860 slider-solver   # 默认端口 7860
+```
+
+容器监听端口由环境变量 `PORT` 控制,默认 `7860`,可直接部署到任意支持 Docker 的平台:
+
+| 平台            | 说明                                             |
+| --------------- | ------------------------------------------------ |
+| Hugging Face Spaces | 无需额外配置,默认端口即为 7860                  |
+| Railway / Render / Koyeb | 平台自动注入 `PORT`,无需手动设置端口       |
+| 云服务器 / VPS  | `-p 自定义端口:7860` 映射即可                    |
+
+可选环境变量:`PROXY=http://host:port`,设置后所有腾讯请求走该代理。
+
+### Vercel 部署
+
+保留 Vercel Serverless 入口 `api/index.py`,配置见 `vercel.json`(区域 `hkg1`,最大时长 60s):
+
+```bash
+vercel deploy --prod
 ```
 
 ## 接口调用方式

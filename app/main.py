@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""腾讯滑块验证 HTTP 服务
+"""腾讯滑块验证 HTTP 服务(quickjs 版,无 Node 依赖)
 GET /solve?captcha_a_id=1600000770[&ua=...][&tkid=...][&retry=3]
 GET /health
 """
@@ -18,13 +18,13 @@ import solver  # noqa: E402
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s %(name)s: %(message)s')
-log = logging.getLogger('api')
+log = logging.getLogger('api').info
 
 app = FastAPI(title='TCaptcha Solver', docs_url=None, redoc_url=None)
 app.add_middleware(CORSMiddleware, allow_origins=['*'],
                    allow_methods=['*'], allow_headers=['*'])
 
-_INDEX = 'index.html'
+_INDEX = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html')
 
 
 @app.get('/')
@@ -48,9 +48,9 @@ def solve(captcha_a_id: str = '1600000770', ua: str = '', tkid: str = '',
     _ua = ua.strip() or solver.DEFAULT_UA
     if tkid.strip():
         solver.TKID = tkid.strip()
-    log.info(f'/solve aid={captcha_a_id} retry={retry} ua_len={len(_ua)}')
+    log(f'/solve aid={captcha_a_id} retry={retry} ua_len={len(_ua)}')
     r = solver.get_ticket(captcha_a_id=captcha_a_id, ua=_ua, retry=retry)
-    log.info(f'/solve result code={r["code"]}')
+    log(f'/solve result code={r["code"]}')
     return r
 
 

@@ -11,3 +11,5 @@ config.yaml
 /app/sessions
 /app/__pycache__
 app/collect_out.json
+.vercel
+/api/__pycache__

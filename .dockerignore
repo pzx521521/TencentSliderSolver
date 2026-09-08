@@ -1,0 +1,14 @@
+.git
+.gitignore
+.gitattributes
+.vercel
+.agents
+.DS_Store
+.dockerignore
+Dockerfile
+README.md
+vercel.json
+api
+public
+__pycache__
+*.pyc

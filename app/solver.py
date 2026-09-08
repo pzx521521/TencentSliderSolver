@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-腾讯 TCaptcha 滑块验证(Docker 服务版核心逻辑)
-流程: prehandle -> 下载图/tdc.js -> CV识别缺口 -> Node沙箱注入轨迹生成collect
+腾讯 TCaptcha 滑块验证(quickjs 进程内版核心逻辑,无 Node 依赖)
+流程: prehandle -> 下载图/tdc.js -> CV识别缺口 -> quickjs注入轨迹生成collect
       -> 本地pow -> cap_union_new_verify -> ticket/randstr
 环境变量: PROXY=http://host:port 可选,设置后所有腾讯请求走该代理
 """
@@ -11,8 +11,6 @@ import json
 import logging
 import os
 import random
-import re
-import subprocess
 import sys
 import time
 
@@ -20,8 +18,11 @@ import cv2
 import numpy as np
 import requests
 
-WORK = os.path.dirname(os.path.abspath(__file__))
-AID = "1600000770" # 1600000770 是起点风控下发的 CaptchaAId(验证码 AppId) 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from js_runner import gen_collect as js_gen_collect  # noqa: E402
+
+AID = "1600000770" # 1600000770 是起点风控下发的 CaptchaAId(验证码 AppId)
 TKID = "655189169" # 655189169 是起点业务自己的 TK ID(渠道/子业务标识) 应该不传也可以
 ENTRY_URL = "https://h5.if.qidian.com/new/welfareCenter/"
 
@@ -68,33 +69,24 @@ def prehandle(s, ua, captcha_a_id=AID):
 
 
 def download_assets(s, data):
+    """下载 tdc.js 源码与背景/滑块图(全内存,不落盘)"""
     base = 'https://turing.captcha.qcloud.com'
     dyn = data['dyn_show_info']
     comm = data['comm_captcha_cfg']
 
-    sess_dir = os.path.join(WORK, 'sessions', time.strftime('%H%M%S') + f'_{random.randint(100, 999)}')
-    os.makedirs(sess_dir, exist_ok=True)
-
-    paths = {}
     r = s.get(base + comm['tdc_path'], timeout=20); r.raise_for_status()
-    paths['tdc'] = os.path.join(sess_dir, 'tdc.js')
-    open(paths['tdc'], 'wb').write(r.content)
-
+    tdc_src = r.text
     r = s.get(base + dyn['bg_elem_cfg']['img_url'], timeout=20); r.raise_for_status()
-    paths['bg'] = os.path.join(sess_dir, 'bg.jpg')
-    open(paths['bg'], 'wb').write(r.content)
-
+    bg = r.content
     r = s.get(base + dyn['sprite_url'], timeout=20); r.raise_for_status()
-    paths['sprite'] = os.path.join(sess_dir, 'sprite.png')
-    open(paths['sprite'], 'wb').write(r.content)
-    paths['dir'] = sess_dir
-    return paths
+    sprite = r.content
+    return {'tdc': tdc_src, 'bg': bg, 'sprite': sprite}
 
 
-def find_gap(bg_path, sprite_path, fg_elem):
+def find_gap(bg_bytes, sprite_bytes, fg_elem):
     """识别缺口:粗定位(暗度/边缘融合)+ 白描边精修(top-hat × alpha 轮廓)"""
-    bg = cv2.imread(bg_path)
-    sprite = cv2.imread(sprite_path, cv2.IMREAD_UNCHANGED)
+    bg = cv2.imdecode(np.frombuffer(bg_bytes, np.uint8), cv2.IMREAD_COLOR)
+    sprite = cv2.imdecode(np.frombuffer(sprite_bytes, np.uint8), cv2.IMREAD_UNCHANGED)
     x, y = fg_elem['sprite_pos']
     w, h = fg_elem['size_2d']
     piece = sprite[y:y + h, x:x + w]
@@ -177,15 +169,9 @@ def calc_pow(prefix, target_md5):
         n += 1
 
 
-def gen_collect(tdc_path, target_x, target_y):
-    out = os.path.join(WORK, 'collect_out.json')
-    r = subprocess.run(['node', os.path.join(WORK, 'collect_gen.js'), tdc_path,
-                        str(target_x), str(target_y), out],
-                       capture_output=True, text=True, timeout=30, cwd=WORK)
-    if r.returncode != 0:
-        raise RuntimeError(f'collect 生成失败: {r.stderr[-500:]}')
-    log(r.stderr.strip().splitlines()[-1])
-    return json.load(open(out))
+def gen_collect(tdc_source, target_x, target_y):
+    """quickjs 进程内执行 tdc.js + 注入拟人轨迹,生成 collect"""
+    return js_gen_collect(tdc_source, target_x, target_y)
 
 
 def verify(s, sess, c):
@@ -221,17 +207,17 @@ def get_ticket(captcha_a_id=AID, ua=DEFAULT_UA, retry=3):
             pow_cfg = data['comm_captcha_cfg']['pow_cfg']
             log(f"sess 长度 {len(sess)}, pow prefix={pow_cfg['prefix']}")
 
-            paths = download_assets(s, data)
+            assets = download_assets(s, data)
             fg = data['dyn_show_info']['fg_elem_list']
             slider_fg = next(e for e in fg if e.get('type') == 'slider' or e['id'] == 1)
             start_x = slider_fg['init_pos'][0]
-            candidates = find_gap(paths['bg'], paths['sprite'], slider_fg)
+            candidates = find_gap(assets['bg'], assets['sprite'], slider_fg)
 
             # 多候选重试:verify 失败(errorCode=50)会返回新 sess,可继续用新点位提交
             pa, pt = calc_pow(pow_cfg['prefix'], pow_cfg['md5'])
             log(f'pow: {pa} ({pt}ms)')
             for ci, (gx, gy) in enumerate(candidates):
-                c = gen_collect(paths['tdc'], gx, gy)
+                c = gen_collect(assets['tdc'], gx, gy)
                 c['pow_answer'] = pa
                 c['pow_calc_time'] = pt
                 log(f'提交候选 {ci + 1}/{len(candidates)}: x={gx} y={gy}')

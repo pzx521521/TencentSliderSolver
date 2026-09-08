@@ -3,3 +3,4 @@ uvicorn==0.34.0
 requests==2.32.3
 opencv-python-headless==4.10.0.84
 numpy==1.26.4
+quickjs==1.19.4
