@@ -1,0 +1,10 @@
+.DS_Store
+.gocache/
+.idea/
+*.log
+tmp/
+.env
+.agents/
+skills-lock.json
+Agents.md
+config.yaml
