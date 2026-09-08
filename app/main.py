@@ -8,6 +8,8 @@ import os
 import sys
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 import uvicorn
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -19,6 +21,16 @@ logging.basicConfig(level=logging.INFO,
 log = logging.getLogger('api')
 
 app = FastAPI(title='TCaptcha Solver', docs_url=None, redoc_url=None)
+app.add_middleware(CORSMiddleware, allow_origins=['*'],
+                   allow_methods=['*'], allow_headers=['*'])
+
+_INDEX = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                      'index.html')
+
+
+@app.get('/')
+def index():
+    return FileResponse(_INDEX)
 
 
 @app.get('/health')

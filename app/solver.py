@@ -31,7 +31,7 @@ DEFAULT_UA = ('Mozilla/5.0 (Linux; Android 14; 2106118C Build/UKQ1.231207.002; w
               'QDReaderAndroid/7.9.420/1656/1002138/Xiaomi/QDShowNativeLoading')
 
 _proxy = os.environ.get('PROXY', '').strip()
-PROXIES = {'http': _proxy, 'https': _proxy} if _proxy else None
+PROXIES = {'http': _proxy, 'https': _proxy} if _proxy else {}
 
 
 log = logging.getLogger('solver').info

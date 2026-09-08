@@ -8,3 +8,6 @@ tmp/
 skills-lock.json
 Agents.md
 config.yaml
+/app/sessions
+/app/__pycache__
+app/collect_out.json
