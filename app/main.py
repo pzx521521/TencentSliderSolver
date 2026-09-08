@@ -24,8 +24,7 @@ app = FastAPI(title='TCaptcha Solver', docs_url=None, redoc_url=None)
 app.add_middleware(CORSMiddleware, allow_origins=['*'],
                    allow_methods=['*'], allow_headers=['*'])
 
-_INDEX = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                      'index.html')
+_INDEX = 'index.html'
 
 
 @app.get('/')
