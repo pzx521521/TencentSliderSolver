@@ -2,7 +2,7 @@
 
 腾讯滑块验证码求解 HTTP 服务,'
 
-基于 FastAPI(api) +opencv2(识别滑块距离)+ quickjs(进程内执行 JS,无 Node 依赖),返回 `ticket` / `randstr`。
+基于 FastAPI(api) +opencv2(识别滑块距离)+ quickjs(轨迹生成->进程内执行 JS,无 Node 依赖),返回 `ticket` / `randstr`。
 
 ## 快速启动
 
